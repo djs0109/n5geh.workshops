@@ -1,6 +1,7 @@
 from keycloak import KeycloakOpenID
+from filip.models.base import FiwareHeader
 import time
-
+from pydantic import computed_field, ConfigDict, model_validator, PrivateAttr
 
 AVAILABLE_SERVICES = {
     "n5geh_demo": "GLSjpaYJy3uBc9X01E4BpVrJW4u1BcuO"
@@ -8,38 +9,67 @@ AVAILABLE_SERVICES = {
 
 
 class KeycloakTokenManager:
-    def __init__(self,
-                 fiware_service: str,
-                 ):
-        assert fiware_service in AVAILABLE_SERVICES.keys()
+    def __init__(self, fiware_service: str):
+        if fiware_service not in AVAILABLE_SERVICES:
+            raise ValueError(f"Service {fiware_service} not recognized.")
+
         self.client = KeycloakOpenID(
-                server_url="https://sso.eonerc.rwth-aachen.de",  # Remove /auth/ for newer Quarkus versions
-                client_id=f"{fiware_service}-admin",
-                realm_name="EBC-Dev",
-                client_secret_key=AVAILABLE_SERVICES[fiware_service]  # Only if client is confidential
-            )
+            server_url="https://sso.eonerc.rwth-aachen.de",
+            client_id=f"{fiware_service}-admin",
+            realm_name="EBC-Dev",
+            client_secret_key=AVAILABLE_SERVICES[fiware_service]
+        )
         self._token_data = None
         self._expiry_time = 0
 
     def get_access_token(self):
-        # Buffer of 10 seconds to account for network latency
         if not self._token_data or time.time() >= (self._expiry_time - 10):
-            print("Token expired or missing. Fetching new token...")
+            print(f"Fetching new token for service...")
             self._token_data = self.client.token(grant_type='client_credentials')
-            # Calculate absolute expiry timestamp
             self._expiry_time = time.time() + self._token_data['expires_in']
-
         return self._token_data['access_token']
 
 
+class FiwareHeaderSecure(FiwareHeader):
+    # 1. Allow custom types in the model
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    # 2. Use a Private Attribute so it's hidden from JSON/Exports
+    _token_manager: KeycloakTokenManager = PrivateAttr()
+
+    @model_validator(mode='after')
+    def initialize_manager(self) -> 'FiwareHeaderSecure':
+        """
+        Runs automatically after 'service' and 'service_path' are validated.
+        We use self.service (from the base FiwareHeader) to init the manager.
+        """
+        self._token_manager = KeycloakTokenManager(fiware_service=self.service)
+        return self
+
+    @computed_field
+    @property
+    def Authorization(self) -> str:
+        """Dynamically fetched when model_dump() or model_dump_json() is called"""
+        return f"Bearer {self._token_manager.get_access_token()}"
+
+
+if __name__ == '__main__':
+    # Notice we no longer pass the manager here!
+    header = FiwareHeaderSecure(
+        service="n5geh_demo",
+        service_path='/'
+    )
+
+    # The Authorization field will trigger the token fetch automatically
+    print(header.model_dump_json(indent=2))
+
 # TODO use FIWARE secure header
 if __name__ == '__main__':
-    from filip.models.base import FiwareHeaderSecure
-    fiware_service = "n5geh_demo"
-    manager = KeycloakTokenManager(fiware_service=fiware_service)
+    # Notice we no longer pass the manager here!
     header = FiwareHeaderSecure(
-        service=fiware_service,
-        service_path='/',
-        authorization=f"Bearer {manager.get_access_token()}",
+        service="n5geh_demo",
+        service_path='/'
     )
+
+    # The Authorization field will trigger the token fetch automatically
     print(header.model_dump_json(indent=2))
