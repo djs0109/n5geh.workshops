@@ -4,7 +4,8 @@ import time
 from pydantic import computed_field, ConfigDict, model_validator, PrivateAttr
 
 AVAILABLE_SERVICES = {
-    "n5geh_demo": "GLSjpaYJy3uBc9X01E4BpVrJW4u1BcuO"
+    "n5geh_demo": "GLSjpaYJy3uBc9X01E4BpVrJW4u1BcuO",
+    "entirety": "DWSHaRena0QDlmCafCYqcUsbHIpK86GR"
 }
 
 
@@ -15,7 +16,7 @@ class KeycloakTokenManager:
 
         self.client = KeycloakOpenID(
             server_url="https://sso.eonerc.rwth-aachen.de",
-            client_id=f"{fiware_service}-admin",
+            client_id=fiware_service if fiware_service == "entirety" else f"{fiware_service}-admin",
             realm_name="EBC-Dev",
             client_secret_key=AVAILABLE_SERVICES[fiware_service]
         )
