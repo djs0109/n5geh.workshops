@@ -3,22 +3,26 @@ from filip.models.base import FiwareHeader
 import time
 from pydantic import computed_field, ConfigDict, model_validator, PrivateAttr
 
-AVAILABLE_SERVICES = {
-    "n5geh_demo": "GLSjpaYJy3uBc9X01E4BpVrJW4u1BcuO",
-    "entirety": "DWSHaRena0QDlmCafCYqcUsbHIpK86GR"
+AVAILABLE_SERVICES = (
+    "n5geh_demo",
+    "entirety"
+)
+CREDENTIALS = {
+    "user_name": "n5geh_demo",
+    "password": "n5geh_demo",
+    "client_id": "n5geh_demo",
+    "client_secret": "LZXaIGtD6Ida4X9Z2Zex491sq4in9Wzv"
 }
-
 
 class KeycloakTokenManager:
     def __init__(self, fiware_service: str):
         if fiware_service not in AVAILABLE_SERVICES:
             raise ValueError(f"Service {fiware_service} not recognized.")
-
         self.client = KeycloakOpenID(
             server_url="https://sso.eonerc.rwth-aachen.de",
-            client_id=fiware_service if fiware_service == "entirety" else f"{fiware_service}-admin",
+            client_id=CREDENTIALS["client_id"],
             realm_name="EBC-Dev",
-            client_secret_key=AVAILABLE_SERVICES[fiware_service]
+            client_secret_key=CREDENTIALS["client_secret"]
         )
         self._token_data = None
         self._expiry_time = 0
@@ -26,7 +30,9 @@ class KeycloakTokenManager:
     def get_access_token(self):
         if not self._token_data or time.time() >= (self._expiry_time - 10):
             print(f"Fetching new token for service...")
-            self._token_data = self.client.token(grant_type='client_credentials')
+            self._token_data = self.client.token(
+                username=CREDENTIALS["user_name"],
+                password=CREDENTIALS["password"])
             self._expiry_time = time.time() + self._token_data['expires_in']
         return self._token_data['access_token']
 
@@ -64,7 +70,6 @@ if __name__ == '__main__':
     # The Authorization field will trigger the token fetch automatically
     print(header.model_dump_json(indent=2))
 
-# TODO use FIWARE secure header
 if __name__ == '__main__':
     # Notice we no longer pass the manager here!
     header = FiwareHeaderSecure(
