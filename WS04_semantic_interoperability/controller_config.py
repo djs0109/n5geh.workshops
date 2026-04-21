@@ -1,8 +1,4 @@
-import os
 import yaml
-import rdflib
-from pathlib import Path
-
 from rdf4j_client import SparqlApiClient
 
 # SPARQL queries (with <room_uri> placeholders that we'll fill in via Python string
