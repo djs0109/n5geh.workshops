@@ -30,6 +30,11 @@ To get started with the workshops, install the required dependencies and start t
    ```bash
    jupyter notebook
    ```
+> If you are using a conda environment, you might need to set up the kernel:
+> ```bash
+> python -m ipykernel install --user --name=n5geh_workshop
+> ```
+> Make sure to select the `n5geh_workshop` kernel in Jupyter Notebook to ensure you are using the correct environment.
 
 3. **Run the workshops:**
    Navigate to the respective workshop folders (e.g., `WS01_platform_basics/`) in the Jupyter interface and open the `.ipynb` files to begin.
